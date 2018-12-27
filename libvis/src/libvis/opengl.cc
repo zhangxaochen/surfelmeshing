@@ -29,7 +29,15 @@
 
 #include "libvis/opengl.h"
 
-#include <GL/glx.h>
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+#   include <windows.h>
+//#   include <wingdi.h>
+#else //linux
+
+#   include <GL/glx.h>
+#endif //_WIN32 & linux
 
 namespace vis {
 
@@ -77,8 +85,17 @@ std::string GetGLErrorDescription(GLenum error_code) {
   }
 }
 
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+bool IsOpenGLContextAvailable() {
+  return (wglGetCurrentContext() != nullptr);
+}
+#else //linux
+
 bool IsOpenGLContextAvailable() {
   return (glXGetCurrentContext() != nullptr);
 }
+#endif //_WIN32 & linux
 
 }

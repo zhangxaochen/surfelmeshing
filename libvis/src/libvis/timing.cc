@@ -32,6 +32,7 @@
 #include <limits>
 #include <math.h>
 #include <map>
+#include<algorithm> //support for max()
 
 #include <glog/logging.h>
 

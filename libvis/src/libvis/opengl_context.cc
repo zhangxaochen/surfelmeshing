@@ -29,13 +29,58 @@
 #include "libvis/opengl_context.h"
 
 #include <GL/glew.h>
-#include <GL/glx.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
+
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+#   include <windows.h>
+//#   include <strsafe.h>
+#else //linux
+
+#   include <GL/glx.h>
+#   include <X11/Xlib.h>
+#   include <X11/Xutil.h>
+#endif //_WIN32 & linux
 
 #include <glog/logging.h>
 
 namespace vis {
+//#if 0
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+struct OpenGLContextImpl {
+//   Display* display;
+//   GLXDrawable drawable;
+//   GLXContext context;
+  HDC displayHdc; //display & drawable to one HDC
+  HGLRC context;
+  
+  bool needs_glew_initialization;
+};
+
+//DEPRECATED temporarialy:
+//int XErrorHandler(Display* dsp, XErrorEvent* error) {
+
+void CheckLastError() {
+    //https://docs.microsoft.com/zh-cn/windows/desktop/Debug/retrieving-the-last-error-code
+    LPVOID lpMsgBuf;
+    DWORD dw = GetLastError();
+
+    FormatMessage(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        dw,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPTSTR)&lpMsgBuf,
+        0, NULL);
+    LOG(FATAL) << "LastError:\n" << lpMsgBuf;
+
+}
+
+#else //linux
 
 struct OpenGLContextImpl {
   Display* display;
@@ -53,6 +98,7 @@ int XErrorHandler(Display* dsp, XErrorEvent* error) {
   LOG(FATAL) << "X Error:\n" << error_string;
   return 0;
 }
+#endif //_WIN32 & linux
 
 
 OpenGLContext::OpenGLContext() { }
@@ -67,6 +113,107 @@ OpenGLContext& OpenGLContext::operator=(OpenGLContext&& other) {
 OpenGLContext::~OpenGLContext() {
   Deinitialize();
 }
+
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+bool OpenGLContext::InitializeWindowless(OpenGLContext* sharing_context) {
+  CHECK(!impl);
+  impl.reset(new OpenGLContextImpl());
+
+  PIXELFORMATDESCRIPTOR pfd;
+  ZeroMemory(&pfd, sizeof(pfd)); // set the pixel format for the DC
+  pfd.nSize = sizeof(pfd);
+  pfd.nVersion = 1;
+  pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+  pfd.iPixelType = PFD_TYPE_RGBA;
+  pfd.cColorBits = 24;
+  pfd.cDepthBits = 24;
+  pfd.iLayerType = PFD_MAIN_PLANE;
+
+  //HWND hwin = GetActiveWindow();
+  //HDC hdc_active = GetDC(hwin);
+  HDC hdc_active = wglGetCurrentDC();
+  int format = ChoosePixelFormat(hdc_active, &pfd);
+  //If the function fails, the return value is zero.To get extended error information, call GetLastError.
+  if (!format) {
+      LOG(FATAL) << "ChoosePixelFormat() No appropriate visual found.";
+      CheckLastError();
+  }
+  bool res = SetPixelFormat(hdc_active, format, &pfd);
+  if (!res) {
+      LOG(FATAL) << "SetPixelFormat() failed.";
+      CheckLastError();
+  }
+
+  HGLRC hrc = wglCreateContext(hdc_active);
+  if (nullptr == hrc) {
+      LOG(FATAL) << "wglCreateContext() failed.";
+      CheckLastError();
+  }
+
+  impl->displayHdc = hdc_active;
+  impl->context = hrc;
+  impl->needs_glew_initialization = true;
+  return true;
+}//InitializeWindowless
+
+void OpenGLContext::Deinitialize() {
+  if (!impl || !impl->context) {
+    return;
+  }
+
+  wglMakeCurrent(nullptr, nullptr);
+  wglDeleteContext(impl->context);
+
+  impl->displayHdc = nullptr;
+  impl->context = nullptr;
+
+  impl.reset();
+}//Deinitialize
+
+void OpenGLContext::AttachToCurrent() {
+  impl.reset(new OpenGLContextImpl());
+  
+  //impl->display = glXGetCurrentDisplay();
+  //impl->drawable = glXGetCurrentDrawable();
+  //impl->context = glXGetCurrentContext();
+  impl->displayHdc = wglGetCurrentDC();
+  impl->context = wglGetCurrentContext();
+
+  impl->needs_glew_initialization = false;  // TODO: This is not clear.
+}//AttachToCurrent
+
+void OpenGLContext::Detach() {
+  impl.reset();
+}//Detach
+
+OpenGLContext SwitchOpenGLContext(const OpenGLContext& context) {
+  OpenGLContext current_context;
+  current_context.AttachToCurrent();
+  if (!current_context.impl->displayHdc) {
+    // We need a display, otherwise glXMakeCurrent() will segfault.
+    current_context.impl->displayHdc = context.impl->displayHdc;
+  }
+
+  bool res = wglMakeCurrent(context.impl->displayHdc, context.impl->context);
+  if (res == GL_FALSE) {
+      LOG(FATAL) << "wglMakeCurrent() failed.";
+  }
+
+  if (context.impl->needs_glew_initialization) {
+    // Initialize GLEW on first switch to a context.
+    glewExperimental = GL_TRUE;
+    GLenum glew_init_result = glewInit();
+    CHECK_EQ(static_cast<int>(glew_init_result), GLEW_OK);
+    glGetError();  // Ignore GL_INVALID_ENUM​ error caused by glew
+    context.impl->needs_glew_initialization = false;
+  }
+  
+  return current_context;
+}//SwitchOpenGLContext
+
+#else //linux
 
 bool OpenGLContext::InitializeWindowless(OpenGLContext* sharing_context) {
   CHECK(!impl);
@@ -161,5 +308,7 @@ OpenGLContext SwitchOpenGLContext(const OpenGLContext& context) {
   XSetErrorHandler(old_error_handler);
   return current_context;
 }
+
+#endif //_WIN32 & linux
 
 }

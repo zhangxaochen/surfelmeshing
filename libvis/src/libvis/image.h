@@ -41,6 +41,11 @@
 #include "libvis/libvis.h"
 #include "libvis/qt_thread.h"
 
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+#define posix_memalign(p, a, s) (((*(p)) = _aligned_malloc((s), (a))), *(p) ?0 :errno)
+#endif //_WIN32
+
 namespace vis {
 
 // Vector type for image sizes.

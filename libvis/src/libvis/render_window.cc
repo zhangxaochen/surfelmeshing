@@ -36,6 +36,11 @@
 #endif
 #endif
 
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+#undef CreateWindow //avoid naming conflict
+#endif //_WIN32
+
 namespace vis {
 
 shared_ptr<RenderWindow> RenderWindow::CreateWindow(const std::string& title, const shared_ptr<RenderWindowCallbacks>& callbacks) {

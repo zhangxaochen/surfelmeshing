@@ -35,6 +35,11 @@
 #include "libvis/libvis.h"
 #include "libvis/window_callbacks.h"
 
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+#undef CreateWindow //avoid naming conflict
+#endif //_WIN32
+
 namespace vis {
 
 class RenderWindow;

@@ -39,6 +39,7 @@ include_directories(${Boost_INCLUDE_DIR})
 
 # GLog (external)
 find_package(Glog 0.3.4 REQUIRED)
+include_directories(${GLOG_INCLUDE_DIR})
 
 # PCL (external)
 find_package(PCL 1.7 REQUIRED)
@@ -82,7 +83,10 @@ set(CMAKE_AUTOMOC ON)
 # Instruct CMake to run rcc (resource compiler) automatically when needed.
 set(CMAKE_AUTORCC ON)
 find_package(Qt5Widgets)
-find_package(Qt5X11Extras)
+if(MSVC)
+else(MSVC)
+  find_package(Qt5X11Extras)
+endif(MSVC)
 find_package(Qt5OpenGL)
 
 if(Qt5Widgets_FOUND)
@@ -90,16 +94,22 @@ if(Qt5Widgets_FOUND)
 endif()
 
 
-# Settings.
-add_definitions("-Wall -Wextra -O2 -msse2 -msse3 -std=c++11")
+if(MSVC) #to avoid non-existing FLAGS for Visual Studio
+  add_definitions("-msse2 -msse3 -std=c++11")
+  add_definitions(-D_USE_MATH_DEFINES) #support for "M_PI"
+else(MSVC)
+  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUXX)
+    # Settings.
+    add_definitions("-Wall -Wextra -O2 -msse2 -msse3 -std=c++11")
 
-# TODO: It seems gcc cannot disable this locally, therefore added it here as a
-#       workaround.
-add_definitions("-Wno-unknown-pragmas")
+    # TODO: It seems gcc cannot disable this locally, therefore added it here as a
+    #       workaround.
+    add_definitions("-Wno-unknown-pragmas")
 
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUXX)
-  add_definitions("-Wno-missing-field-initializers")
-endif()
+    add_definitions("-Wall -Wextra -O2 -msse2 -msse3 -std=c++11")
+    add_definitions("-Wno-missing-field-initializers")
+  endif()
+endif(MSVC)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -243,18 +253,43 @@ add_library(libvis SHARED
   ${LIBVIS_FILES}
 )
 
-set(BASE_LIB_LIBRARIES
-  ${Boost_LIBRARIES}
-  ${GLEW_LIBRARIES}
-  GL
-  glog
-  Qt5::Widgets
-  Qt5::X11Extras
-  Qt5::OpenGL
-  png
-  z
-  pthread
-)
+if(MSVC)
+  set(BASE_LIB_LIBRARIES
+    ${Boost_LIBRARIES}
+    ${GLEW_LIBRARIES}
+    # ${GLOG_LIBRARY}
+    Qt5::Widgets
+    Qt5::OpenGL
+    png
+  )
+  target_link_libraries(libvis debug ${GLOG_LIBRARY_DEBUG})
+  target_link_libraries(libvis optimized ${GLOG_LIBRARY})
+
+  if (NOT BUILD_SHARED_LIBS)
+    #use static GLOG lib. Don't use __declspec(dllexport|dllimport) if this is a static build
+    target_compile_definitions (libvis PUBLIC GOOGLE_GLOG_DLL_DECL=)
+  
+    #choose static/dynamic of GLEW lib; default link against the static version
+    option(USE_STATIC_GLEW "Use static glew or not" OFF)
+    if(USE_STATIC_GLEW)
+      target_compile_definitions (libvis PUBLIC GLEW_STATIC)
+    endif(USE_STATIC_GLEW)
+  endif (NOT BUILD_SHARED_LIBS)
+else(MSVC)
+  set(BASE_LIB_LIBRARIES
+    ${Boost_LIBRARIES}
+    ${GLEW_LIBRARIES}
+    GL
+    glog
+    Qt5::Widgets
+    Qt5::X11Extras
+    Qt5::OpenGL
+    png
+    z
+    pthread
+  )
+endif(MSVC)
+
 if(VULKAN_FOUND)
   set(BASE_LIB_LIBRARIES
     vulkan

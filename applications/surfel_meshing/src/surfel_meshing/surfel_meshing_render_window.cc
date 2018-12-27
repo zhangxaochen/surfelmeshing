@@ -34,7 +34,12 @@
 #include "surfel_meshing/surfel_meshing_render_window.h"
 
 #include <GL/glew.h>
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+#else //linux
 #include <GL/glx.h>
+#endif //_WIN32 & linux
 
 #include "surfel_meshing/cuda_surfel_reconstruction.cuh"
 #include <libvis/cuda/cuda_util.h>

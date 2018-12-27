@@ -50,7 +50,12 @@
 
 #include "surfel_meshing/surfel_meshing.h"  // Must be included before any header that defines Bool
 
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+#else //linux
 #include <GL/glx.h>
+#endif //_WIN32 & linux
 
 namespace vis {
 
