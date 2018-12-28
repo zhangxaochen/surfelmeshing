@@ -39,7 +39,13 @@ ImageIONetPBMRegistrator image_io_netpbm_registrator_;
 #ifdef LIBVIS_HAVE_QT
 ImageIOQtRegistrator image_io_qt_registrator_;
 #endif
+template<>
+void FOO_CLS<int>::foo_member() const{}
 
+void foo_wrap(const FOO_CLS<int> &fff) {
+    //FOO_CLS<int> fff;
+    fff.foo_member();
+}
 template<>
 bool Image<u8>::Write(const string& image_file_name) const {
   ImageIO* io = ImageIORegistry::Instance()->Get(image_file_name);

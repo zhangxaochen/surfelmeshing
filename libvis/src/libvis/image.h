@@ -138,6 +138,15 @@ extern ImageIOQtRegistrator image_io_qt_registrator_;
 //     ...
 //   }
 // 
+
+template <typename T>
+class FOO_CLS {
+public:
+    void foo_member() const {}
+};
+template<>
+void FOO_CLS<int>::foo_member() const;
+
 template <typename T>
 class Image {
  public:
@@ -1289,7 +1298,15 @@ class Image {
     return false;
   }
   
-  
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+  //to port to windows, put the non-specialized method defnition outside the class template @2018-12-28 22:32:42
+  //leave only declaration inside the class:
+  QImage WrapInQImage() const;
+  QImage WrapInQImage(QImage::Format format) const;
+
+#else //linux
+
 #ifdef LIBVIS_HAVE_QT
   // Creates a QImage around the image data. It uses the existing memory, which
   // is only valid as long as the Image is alive. This variant uses a default
@@ -1310,7 +1327,9 @@ class Image {
                   stride(), format);
   }
 #endif
-  
+
+#endif //_WIN32 & linux
+
   
   // Displays the image in a debug window.
   shared_ptr<ImageDisplay> DebugDisplay(const string& title) const {
@@ -1445,6 +1464,31 @@ bool Image<Vec4u8>::Read(const string& image_file_name);
 
 // WrapInQImage() template specializations for the supported types.
 #ifdef LIBVIS_HAVE_QT
+
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+// Creates a QImage around the image data. It uses the existing memory, which
+// is only valid as long as the Image is alive. This variant uses a default
+// QImage format, the mapping from Image type to the format is as follows:
+//   
+//   u8     -> QImage::Format_Grayscale8
+//   Vec3u8 -> QImage::Format_RGB888
+//   Vec4u8 -> QImage::Format_RGBA8888 (not premultiplied)
+template<typename T>
+QImage Image<T>::WrapInQImage() const {
+    static_assert(always_false<T>::value, "This WrapInQImage() overload is not supported for this image type. u8 and Vec3u8 and Vec4u8 are supported.");
+    return QImage();
+}
+
+// Overload of WrapInQImage() which allows to specify the QImage format to
+// be used.
+template<typename T>
+QImage Image<T>::WrapInQImage(QImage::Format format) const {
+    return QImage(reinterpret_cast<const u8*>(data()), width(), height(),
+        stride(), format);
+}
+#endif //_WIN32
+
 template<>
 QImage Image<u8>::WrapInQImage() const;
 template<>
