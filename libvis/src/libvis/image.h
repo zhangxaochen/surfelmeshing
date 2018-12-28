@@ -1277,13 +1277,20 @@ class Image {
     }
   }
   
-  
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+  bool Write(const string& /*image_file_name*/) const;
+
+#else //linux
+
   // Writes the image to a file. Returns true if successful.
   bool Write(const string& /*image_file_name*/) const {
     static_assert(always_false<T>::value, "Write() is not supported for this image type. u8 and Vec3u8 and Vec4u8 are supported.");
     return false;
   }
-  
+#endif //_WIN32 & linux
+
   // Loads the image from a file. Returns true if successful. This resizes the
   // image to the size of the image file. If a specific alignment or stride is
   // desired, the image currently must be set to the correct size beforehand,
@@ -1445,6 +1452,17 @@ class Image {
 };
 
 // Writing / reading template specializations for the supported types.
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+// Writes the image to a file. Returns true if successful.
+template<typename T>
+bool Image<T>::Write(const string& /*image_file_name*/) const {
+    static_assert(always_false<T>::value, "Write() is not supported for this image type. u8 and Vec3u8 and Vec4u8 are supported.");
+    return false;
+}
+#endif //_WIN32 & linux
+
 template<>
 bool Image<u8>::Write(const string& image_file_name) const;
 template<>

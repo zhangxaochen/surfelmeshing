@@ -258,6 +258,8 @@ if(MSVC)
     ${Boost_LIBRARIES}
     ${GLEW_LIBRARIES}
     # ${GLOG_LIBRARY}
+    OpenGL32
+
     Qt5::Widgets
     Qt5::OpenGL
     png
