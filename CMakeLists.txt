@@ -249,11 +249,13 @@ if(VULKAN_FOUND)
     ${LIBVIS_FILES}
   )
 endif()
-add_library(libvis SHARED
-  ${LIBVIS_FILES}
-)
 
 if(MSVC)
+  #for msvc, add libvis as a static lib, since there is no __declspec(dllexport) in the source code
+  add_library(libvis STATIC
+    ${LIBVIS_FILES}
+  )
+
   set(BASE_LIB_LIBRARIES
     ${Boost_LIBRARIES}
     ${GLEW_LIBRARIES}
@@ -278,6 +280,10 @@ if(MSVC)
     endif(USE_STATIC_GLEW)
   endif (NOT BUILD_SHARED_LIBS)
 else(MSVC)
+  add_library(libvis SHARED
+    ${LIBVIS_FILES}
+  )
+
   set(BASE_LIB_LIBRARIES
     ${Boost_LIBRARIES}
     ${GLEW_LIBRARIES}
@@ -309,7 +315,14 @@ set(BASE_LIB_LIBRARIES
 
 # libvis optional library: libvis_cuda.
 # Contains CUDA functionality, which is only useful with NVIDIA graphics cards.
-cuda_add_library(libvis_cuda SHARED
+if(MSVC)
+  set(libvis_cuda_build_type STATIC)
+else(MSVC)
+  set(libvis_cuda_build_type SHARED)
+endif(MSVC)
+
+# cuda_add_library(libvis_cuda SHARED
+cuda_add_library(libvis_cuda ${libvis_cuda_build_type}
   libvis/src/libvis/cuda/cuda_auto_tuner.h
   libvis/src/libvis/cuda/cuda_buffer.cu
   libvis/src/libvis/cuda/cuda_buffer.cuh

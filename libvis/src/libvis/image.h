@@ -1279,8 +1279,14 @@ class Image {
   
 #if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
     defined(_WIN32) || defined(__WIN32__)
-
+  //to port to windows, put the non-specialized method defnition outside the class template @2018-12-28 22:32:42
+  //leave only declaration inside the class:
   bool Write(const string& /*image_file_name*/) const;
+  bool Read(const string& /*image_file_name*/);
+#ifdef LIBVIS_HAVE_QT
+  QImage WrapInQImage() const;
+  QImage WrapInQImage(QImage::Format format) const;
+#endif //LIBVIS_HAVE_QT
 
 #else //linux
 
@@ -1289,7 +1295,6 @@ class Image {
     static_assert(always_false<T>::value, "Write() is not supported for this image type. u8 and Vec3u8 and Vec4u8 are supported.");
     return false;
   }
-#endif //_WIN32 & linux
 
   // Loads the image from a file. Returns true if successful. This resizes the
   // image to the size of the image file. If a specific alignment or stride is
@@ -1304,15 +1309,6 @@ class Image {
     static_assert(always_false<T>::value, "Read() is not supported for this image type. u8 and Vec3u8 and Vec4u8 are supported.");
     return false;
   }
-  
-#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
-    defined(_WIN32) || defined(__WIN32__)
-  //to port to windows, put the non-specialized method defnition outside the class template @2018-12-28 22:32:42
-  //leave only declaration inside the class:
-  QImage WrapInQImage() const;
-  QImage WrapInQImage(QImage::Format format) const;
-
-#else //linux
 
 #ifdef LIBVIS_HAVE_QT
   // Creates a QImage around the image data. It uses the existing memory, which
@@ -1333,7 +1329,7 @@ class Image {
     return QImage(reinterpret_cast<const u8*>(data()), width(), height(),
                   stride(), format);
   }
-#endif
+#endif //LIBVIS_HAVE_QT
 
 #endif //_WIN32 & linux
 
@@ -1461,30 +1457,14 @@ bool Image<T>::Write(const string& /*image_file_name*/) const {
     static_assert(always_false<T>::value, "Write() is not supported for this image type. u8 and Vec3u8 and Vec4u8 are supported.");
     return false;
 }
-#endif //_WIN32 & linux
 
-template<>
-bool Image<u8>::Write(const string& image_file_name) const;
-template<>
-bool Image<u16>::Write(const string& image_file_name) const;
-template<>
-bool Image<Vec3u8>::Write(const string& image_file_name) const;
-template<>
-bool Image<Vec4u8>::Write(const string& image_file_name) const;
-template<>
-bool Image<u8>::Read(const string& image_file_name);
-template<>
-bool Image<u16>::Read(const string& image_file_name);
-template<>
-bool Image<Vec3u8>::Read(const string& image_file_name);
-template<>
-bool Image<Vec4u8>::Read(const string& image_file_name);
+template<typename T>
+bool Image<T>::Read(const string& /*image_file_name*/) {
+    static_assert(always_false<T>::value, "Read() is not supported for this image type. u8 and Vec3u8 and Vec4u8 are supported.");
+    return false;
+}
 
-// WrapInQImage() template specializations for the supported types.
 #ifdef LIBVIS_HAVE_QT
-
-#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
-    defined(_WIN32) || defined(__WIN32__)
 // Creates a QImage around the image data. It uses the existing memory, which
 // is only valid as long as the Image is alive. This variant uses a default
 // QImage format, the mapping from Image type to the format is as follows:
@@ -1505,7 +1485,28 @@ QImage Image<T>::WrapInQImage(QImage::Format format) const {
     return QImage(reinterpret_cast<const u8*>(data()), width(), height(),
         stride(), format);
 }
+#endif //LIBVIS_HAVE_QT
+
 #endif //_WIN32
+
+template<>
+bool Image<u8>::Write(const string& image_file_name) const;
+template<>
+bool Image<u16>::Write(const string& image_file_name) const;
+template<>
+bool Image<Vec3u8>::Write(const string& image_file_name) const;
+template<>
+bool Image<Vec4u8>::Write(const string& image_file_name) const;
+template<>
+bool Image<u8>::Read(const string& image_file_name);
+template<>
+bool Image<u16>::Read(const string& image_file_name);
+template<>
+bool Image<Vec3u8>::Read(const string& image_file_name);
+template<>
+bool Image<Vec4u8>::Read(const string& image_file_name);
+
+// WrapInQImage() template specializations for the supported types.
 
 template<>
 QImage Image<u8>::WrapInQImage() const;
@@ -1513,7 +1514,6 @@ template<>
 QImage Image<Vec3u8>::WrapInQImage() const;
 template<>
 QImage Image<Vec4u8>::WrapInQImage() const;
-#endif
 
 // DebugDisplay() template specializations for the supported types.
 template<>

@@ -33,6 +33,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+//use alloca() on Windows since msvc doesn't support C99 VLA
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+#define ALLOC_ON_STACK(t,n) (t *) alloca((n)*sizeof(t))
+#endif //_WIN32
+
 namespace vis {
 
 // Import std namespace into vis namespace.

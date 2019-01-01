@@ -1522,7 +1522,9 @@ class CameraImpl : public CameraImplVariadic<Scalar, Steps...> {
   inline virtual CameraImpl<TypeID, Scalar, Steps...>* Scaled(double factor) const override {
 #if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
     defined(_WIN32) || defined(__WIN32__)
-    Scalar* scaled_parameters = (Scalar*)alloca(sizeof(Scalar) * parameters_.size() );
+    //Scalar* scaled_parameters = (Scalar*)alloca(sizeof(Scalar) * parameters_.size() );
+    Scalar* scaled_parameters = ALLOC_ON_STACK(Scalar, parameters_.size());
+
 #else //linux
     Scalar scaled_parameters[parameters_.size()];
 #endif //_WIN32 & linux
@@ -1538,7 +1540,8 @@ class CameraImpl : public CameraImplVariadic<Scalar, Steps...> {
 
 #if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
     defined(_WIN32) || defined(__WIN32__)
-    Scalar* cropped_parameters = (Scalar*)alloca(sizeof(Scalar) * parameters_.size() );
+    //Scalar* cropped_parameters = (Scalar*)alloca(sizeof(Scalar) * parameters_.size() );
+    Scalar* cropped_parameters = ALLOC_ON_STACK(Scalar, parameters_.size());
 #else //linux
     Scalar cropped_parameters[parameters_.size()];
 #endif //_WIN32 & linux

@@ -53,8 +53,16 @@
 #include <pcl/io/ply_io.h>
 #include <signal.h>
 #include <spline_library/splines/uniform_cr_spline.h>
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+#include <conio.h> //replace termios.h on Windows
+
+#else //linux
 #include <termios.h>
 #include <unistd.h>
+
+#endif //_WIN32 & linux
+
 #include <QApplication>
 
 #include "surfel_meshing/asynchronous_meshing.h"
@@ -71,6 +79,18 @@ using namespace vis;
 
 // Get a key press from the terminal without requiring the Return key to confirm.
 // From https://stackoverflow.com/questions/421860
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+//use getch() from conio.h
+
+#include <chrono>
+#include <thread>`
+void usleep(unsigned int usec) {
+    std::this_thread::sleep_for(std::chrono::microseconds(usec));
+}
+
+#else //linux
+
 char getch() {
   char buf = 0;
   struct termios old = {0};
@@ -94,6 +114,7 @@ char getch() {
   }
   return (buf);
 }
+#endif //_WIN32 & linux
 
 
 // Helper to use splines from the used spline library with single-dimension values.
@@ -256,9 +277,14 @@ int main(int argc, char** argv) {
   // terminal, but they seemingly happened to me while there was no background
   // process and they interfered with using gdb.
   // TODO: Find out the reason for those signals
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+  //do nothing...
+#else //linux
   signal(SIGTTIN, SIG_IGN);
   signal(SIGTTOU, SIG_IGN);
-  
+#endif //_WIN32 & linux
+
   
   // ### Parse parameters ###
   
@@ -1022,10 +1048,20 @@ int main(int argc, char** argv) {
     // Scale the poses to match the depth scaling. This is faster than scaling the depths of all pixels to match the poses.
     SE3f input_depth_frame_scaled_frame_T_global = input_depth_frame->frame_T_global();
     input_depth_frame_scaled_frame_T_global.translation() = depth_scaling * input_depth_frame_scaled_frame_T_global.translation();
-    
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+    //const CUDABuffer<u16>* other_depths[outlier_filtering_frame_count];
+    //const CUDABuffer<u16>** other_depths = ALLOC_ON_STACK(CUDABuffer<u16>*, outlier_filtering_frame_count); //const cast error
+    const CUDABuffer<u16>** other_depths = (const CUDABuffer<u16>**)alloca(sizeof(CUDABuffer<u16>*)*outlier_filtering_frame_count);
+    //SE3f global_TR_others[outlier_filtering_frame_count];
+    SE3f* global_TR_others = ALLOC_ON_STACK(SE3f, outlier_filtering_frame_count);
+    //CUDAMatrix3x4 others_TR_reference[outlier_filtering_frame_count];
+    CUDAMatrix3x4* others_TR_reference = ALLOC_ON_STACK(CUDAMatrix3x4, outlier_filtering_frame_count);
+#else //linux
     const CUDABuffer<u16>* other_depths[outlier_filtering_frame_count];
     SE3f global_TR_others[outlier_filtering_frame_count];
     CUDAMatrix3x4 others_TR_reference[outlier_filtering_frame_count];
+#endif //_WIN32 & linux
     for (int i = 0; i < outlier_filtering_frame_count / 2; ++ i) {
       int offset = i + 1;
       

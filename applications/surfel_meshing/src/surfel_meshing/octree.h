@@ -40,6 +40,43 @@
 // Uncomment this to enable storing triangles in the octree. This is very slow.
 // #define KEEP_TRIANGLES_IN_OCTREE
 
+//#ifdef _MSC_VER
+#if defined(WIN32) || defined(_Windows) || defined(_WINDOWS) || \
+    defined(_WIN32) || defined(__WIN32__)
+
+#include <intrin.h>
+
+uint32_t __inline __builtin_ctz(uint32_t value)
+{
+  unsigned long trailing_zero = 0;
+
+  if (_BitScanForward(&trailing_zero, value))
+  {
+      return trailing_zero;
+  }
+  else
+  {
+      // This is undefined, I better choose 32 than 0
+      return 32;
+  }
+}
+
+uint32_t __inline __builtin_clz(uint32_t value)
+{
+  unsigned long leading_zero = 0;
+
+  if (_BitScanReverse(&leading_zero, value))
+  {
+      return 31 - leading_zero;
+  }
+  else
+  {
+      // Same remarks as above
+      return 32;
+  }
+}
+#endif //_WIN32
+
 namespace vis {
 
 // An octree node, containing up to 8 children and a list of surfels.
