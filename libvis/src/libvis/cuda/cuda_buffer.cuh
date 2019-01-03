@@ -84,7 +84,7 @@ class CUDABuffer_ {
     return operator()(pixel.y, pixel.x);
   }
   
-    __forceinline__ __device__ const T& operator()(const int2& pixel) const {
+  __forceinline__ __device__ const T& operator()(const int2& pixel) const {
     return operator()(pixel.y, pixel.x);
   }
   

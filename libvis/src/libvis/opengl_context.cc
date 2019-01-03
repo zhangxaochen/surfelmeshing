@@ -26,6 +26,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+//#include <iostream>
+
 #include "libvis/opengl_context.h"
 
 #include <GL/glew.h>
@@ -62,23 +64,34 @@ struct OpenGLContextImpl {
 //DEPRECATED temporarialy:
 //int XErrorHandler(Display* dsp, XErrorEvent* error) {
 
-void CheckLastError() {
+void CheckLastError(const char *prefixStr) {
     //https://docs.microsoft.com/zh-cn/windows/desktop/Debug/retrieving-the-last-error-code
+    //LPTSTR lpMsgBuf;// = nullptr;
     LPVOID lpMsgBuf;
-    DWORD dw = GetLastError();
 
-    FormatMessage(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER |
-        FORMAT_MESSAGE_FROM_SYSTEM |
-        FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        dw,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPTSTR)&lpMsgBuf,
-        0, NULL);
-    LOG(FATAL) << "LastError:\n" << lpMsgBuf;
+    DWORD lastError = GetLastError();
+    printf("\t%s ", prefixStr);
 
-}
+    if (0 != lastError) {
+        FormatMessage(
+            FORMAT_MESSAGE_ALLOCATE_BUFFER |
+            FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL,
+            lastError,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPTSTR)&lpMsgBuf,
+            //lpMsgBuf,
+            0, NULL);
+        //LOG(WARNING) << "LastError:\n" << (LPTSTR)&lpMsgBuf;
+        //OutputDebugString(lpMsgBuf);
+        //std::cout << "\tLastError: " << lastError << "; msg:= " << (char*)lpMsgBuf << endl;
+        printf("LastError: %u - %s\n", lastError, /*(char*)*/lpMsgBuf);
+    }
+    else {
+        printf("OK (err-code=0)\n");
+    }
+}//CheckLastError
 
 #else //linux
 
@@ -127,29 +140,58 @@ bool OpenGLContext::InitializeWindowless(OpenGLContext* sharing_context) {
   pfd.nVersion = 1;
   pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
   pfd.iPixelType = PFD_TYPE_RGBA;
-  pfd.cColorBits = 24;
+  pfd.cColorBits = 32;
+  //pfd.cRedBits
   pfd.cDepthBits = 24;
+  //pfd.cDepthBits = 16; //will be changed back to 24 by "DescribePixelFormat"
   pfd.iLayerType = PFD_MAIN_PLANE;
 
-  //HWND hwin = GetActiveWindow();
-  //HDC hdc_active = GetDC(hwin);
-  HDC hdc_active = wglGetCurrentDC();
-  int format = ChoosePixelFormat(hdc_active, &pfd);
-  //If the function fails, the return value is zero.To get extended error information, call GetLastError.
-  if (!format) {
-      LOG(FATAL) << "ChoosePixelFormat() No appropriate visual found.";
-      CheckLastError();
+  //HWND hwin = GetActiveWindow(); //null, why?
+  //HWND hwin = GetForegroundWindow();
+  HWND hwin = FindWindow(nullptr, "SurfelMeshing"); //good, not affected by whether foreground or not
+  HDC hdc_active = GetDC(hwin);
+  //HDC hdc_active = GetWindowDC(hwin); //seems both are ok...
+  {//dbg
+      HWND hwin_t1 = GetActiveWindow();
+      HWND hwin_t2 = GetForegroundWindow();
+      HWND hwin_t3 = FindWindow(nullptr, "SurfelMeshing");
+      printf("hwin_t123:= %u, %u, %u, \n", hwin_t1, hwin_t2, hwin_t3);
+
+      const int max_title_chars = 255;
+      TCHAR win_title[max_title_chars];
+      GetWindowText(hwin_t2, win_title, max_title_chars);
+      printf("--DBG: win_title@GetForegroundWindow:= %s\n", win_title);
   }
-  bool res = SetPixelFormat(hdc_active, format, &pfd);
+  //HDC hdc_active = wglGetCurrentDC(); //wrong:https://stackoverflow.com/questions/40518346/opengl-get-device-context
+  const int max_title_chars = 255;
+  TCHAR win_title[max_title_chars];
+  GetWindowText(hwin, win_title, max_title_chars);
+  LOG(INFO) << "win_title: " << win_title;
+  CheckLastError("GetWindowText");
+
+  int px_fmt = ChoosePixelFormat(hdc_active, &pfd);
+  //If the function fails, the return value is zero.To get extended error information, call GetLastError.
+  if (!px_fmt) {
+      CheckLastError("ChoosePixelFormat");
+      LOG(FATAL) << "ChoosePixelFormat() No appropriate visual found.";
+  }
+
+  //↓--changes "pfd" a lot!!
+  int max_fmt_idx = DescribePixelFormat(hdc_active, px_fmt, pfd.nSize, &pfd);
+  if (!max_fmt_idx) {
+      CheckLastError("DescribePixelFormat");
+  }
+
+  bool res = SetPixelFormat(hdc_active, px_fmt, &pfd);
   if (!res) {
+      CheckLastError("SetPixelFormat");
       LOG(FATAL) << "SetPixelFormat() failed.";
-      CheckLastError();
   }
 
   HGLRC hrc = wglCreateContext(hdc_active);
   if (nullptr == hrc) {
+      CheckLastError("wglCreateContext");
       LOG(FATAL) << "wglCreateContext() failed.";
-      CheckLastError();
   }
 
   impl->displayHdc = hdc_active;
