@@ -1,3 +1,6 @@
+#### @2019-1-4: Porting the code from Linux to Windows, tested with msvc2015 (to support `constexpr` etc.)
+---------------
+
 # SurfelMeshing #
 
 ![Screenshot](screenshot.jpg?raw=true)
