@@ -1245,7 +1245,8 @@ void IntegrateMeasurementsCUDA(
   const float cx_inv_pixel_center = -cx_pixel_center / fx;
   const float cy_inv_pixel_center = -cy_pixel_center / fy;
   
-  constexpr int kBlockWidth = 1024;
+  //constexpr int kBlockWidth = 1024;
+  constexpr int kBlockWidth = 32;
   dim3 grid_dim(GetBlockCount(surfel_count, kBlockWidth));
   dim3 block_dim(kBlockWidth);
   
